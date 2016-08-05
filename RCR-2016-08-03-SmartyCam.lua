@@ -1,12 +1,11 @@
 -- Functioning CAN messaging from RCP to AiM SmartyCam.
 -- TPS, Brake Pressure (PSI), RPM functional in this revision
 
-tick_rate = 30       -- Update frequency in Hz
-channel = 0          -- CAN channel on the RCP. Either 0 or 1.
-ext = 0              -- CAN ID is extended (0=11 bit, 1=29 bit)
-timeout = 100        -- Milliseconds to attempt to send CAN message for
-id_tps = 1058        -- CAN ID for TPS TODO: Figure out correct ID
-bitrate = 1000000    -- CAN bitrate (SmartyCam = 1megabit)
+tick_rate = 30          -- Update frequency in Hz
+channel   = 0           -- CAN channel on the RCP. Either 0 or 1.
+ext       = 0           -- CAN ID is extended (0=11 bit, 1=29 bit)
+timeout   = 100         -- Milliseconds to attempt to send CAN message for
+bitrate   = 1000000     -- CAN bitrate (SmartyCam = 1megabit)
 
 -- Init
 initCAN(channel, bitrate)    -- Initialize CAN
@@ -43,21 +42,19 @@ function onTick()
     -- 7 = Clutch position high byte
     
     -- sample inputs
-    tps_value = getAnalog(0)
+    tps_value            = getAnalog(0)
     brake_pressure_value = getAnalog(2)
-    rpm_value = getTimerRpm(0)
+    rpm_value            = getTimerRpm(0)
 
     -- perform conversions
-    brake_pressure_value = brake_pressure_value * 0.0689476         -- convert brake pressure to bar
-    brake_pressure_value = math.floor(brake_pressure_value * 100)   -- convert 1 = 1 bar to 1 = 0.01 bar
+    brake_pressure_value     = brake_pressure_value * 0.0689476         -- convert brake pressure to bar
+    brake_pressure_value     = math.floor(brake_pressure_value * 100)   -- convert 1 = 1 bar to 1 = 0.01 bar
 
     brake_pressure_high_byte = math.floor(brake_pressure_value / 256)
-    brake_pressure_low_byte = brake_pressure_value % 256 -- - (brake_pressure_high_byte * 256)
+    brake_pressure_low_byte  = brake_pressure_value % 256 
 
-    rpm_high_byte = math.floor(rpm_value / 256)
-    rpm_low_byte = rpm_value % 256
-
-    -- print brake_pressure_high_byte + " " + brake_pressure_low_byte
+    rpm_high_byte            = math.floor(rpm_value / 256)
+    rpm_low_byte             = rpm_value % 256
 
     data_1056 = { rpm_low_byte, rpm_high_byte, 0,0,0,0,0,0}
     response = txCAN(channel, 1056, ext, data_1056, timeout)
