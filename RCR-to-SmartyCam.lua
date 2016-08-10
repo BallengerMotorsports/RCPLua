@@ -1,52 +1,81 @@
 -- Functioning CAN messaging from RCP to AiM SmartyCam.
 -- TPS, Brake Pressure (PSI), RPM functional in this revision
+-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+-- Message 1056
+-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+--
+-- RPM                      = (High Byte * 256 + Low byte)
+-- ??
+-- Gear
+-- Engine Temp
+--
+-- Byte Offsets
+--
+-- 0 = RPM low byte
+-- 1 = RPM high byte
+-- 2 = ??
+-- 3 = ??
+-- 4 = Gear low byte
+-- 5 = Gear high byte (probably unused)
+-- 6 = Engine temp low byte
+-- 7 = Engine temp high byte
+--
+-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+-- Message 1058
+-- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+-- Brake Pressure in Bar    =   (High Byte * 256 + Low byte ) / 100
+-- TPS                      =   (High Byte * 256 + Low byte )
+-- Brake position           =   (High Byte * 256 + Low byte )
+-- Cluth position           =   (High Byte * 256 + Low byte )
+--
+-- Bar to PSI = Bar / 14.504
+-- PSI to BAR = PSI * 0.0689476
+--
+-- Byte Offsets
+--
+-- 0 = brake pressure low byte
+-- 1 = brake pressure high byte
+-- 2 = TPS low byte (0% =0, 100% = 100)
+-- 3 = TPS high byte (unused)
+-- 4 = Brake position low byte
+-- 5 = Brake position high byte
+-- 6 = Clutch position low byte
+-- 7 = Clutch position high byte
 
-tick_rate = 150      -- Update frequency in Hz.  Moved from 30Hz to 150Hz while testing message dropouts at SmartyCam
-channel   = 0        -- CAN channel on the RCP. Either 0 or 1, depending on CAN bus chosen.
-ext       = 0        -- CAN ID is extended (0=11 bit, 1=29 bit)
-timeout   = 100      -- Milliseconds to attempt to send CAN message for
-bitrate   = 1000000  -- CAN bitrate (SmartyCam = 1megabit)
+
+tick_rate        = 150      -- Update frequency in Hz.  Moved from 30Hz to 150Hz while testing message dropouts at SmartyCam
+channel          = 0        -- CAN channel on the RCP. Either 0 or 1, depending on CAN bus chosen.
+ext              = 0        -- CAN ID is extended (0=11 bit, 1=29 bit)
+timeout          = 100      -- Milliseconds to attempt to send CAN message for
+bitrate          = 1000000  -- CAN bitrate (SmartyCam = 1megabit)
+gear_tick_update = 10       -- Start at this number and tick down to 0. Upon hitting 0 calculateGear again
+gear_tick_count  = 10       -- Current tick approaching 0
+current_gear     = 0        -- The most recent gear that's been detected
 
 -- Init
 initCAN(channel, bitrate)    -- Initialize CAN
 setTickRate(tick_rate)       -- Specify the onTick callback frequency
 
 function onTick()
-    -- Message 1056
-    --
-    -- RPM                      = (High Byte * 256 + Low byte)
-    -- ??
-    -- Gear
-    -- Engine Temp
-    --
-
-    -- Message 1058
-    --
-    -- Brake Pressure in Bar    =   (High Byte * 256 + Low byte ) / 100
-    -- TPS                      =   (High Byte * 256 + Low byte )
-    -- Brake position           =   (High Byte * 256 + Low byte )
-    -- Cluth position           =   (High Byte * 256 + Low byte )
-    --
-    -- Bar to PSI = Bar / 14.504
-    -- PSI to BAR = PSI * 0.0689476
-    --
-    -- Byte Offsets
-    --
-    -- 0 = brake pressure low byte
-    -- 1 = brake pressure high byte
-    -- 2 = TPS low byte (0% =0, 100% = 100)
-    -- 3 = TPS high byte (unused)
-    -- 4 = Brake position low byte
-    -- 5 = Brake position high byte
-    -- 6 = Clutch position low byte
-    -- 7 = Clutch position high byte
-
+    -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    -- Check if we need to sample the gear again
+    -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    gear_tick_count = gear_tick_count - 1
+    if (gear_tick_count <= 0) then
+        calculateGear()
+        current_gear = getChannel("Gear")
+        gear_tick_count = gear_tick_update
+    end
+    -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     -- sample inputs
+    -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     tps_value                = getAnalog(0)
     brake_pressure_value     = getAnalog(2)
     rpm_value                = getTimerRpm(0)
 
+    -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     -- perform conversions
+    -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     brake_pressure_value     = brake_pressure_value * 0.0689476         -- convert brake pressure to bar
     brake_pressure_value     = math.floor(brake_pressure_value * 100)   -- convert 1 = 1 bar to 1 = 0.01 bar
 
@@ -57,22 +86,30 @@ function onTick()
     rpm_high_byte            = math.floor(rpm_value / 256)
     rpm_low_byte             = rpm_value % 256
 
-    -- print brake_pressure_high_byte + " " + brake_pressure_low_byte
+    -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    -- Compile message data
+    -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-    data_1056 = { rpm_low_byte, rpm_high_byte, 0,0,0,0,0,0}
+    data_1056 = { rpm_low_byte, rpm_high_byte, 0,0,current_gear,0,0,0}
+    data_1058 = { brake_pressure_low_byte, brake_pressure_high_byte, tps_value, 0, 0, 0, 0, 0}
+
+    -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    -- Transmit messages
+    -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
     response = txCAN(channel, 1056, ext, data_1056, timeout)
     if response ~= 1 then
         println "ID 1056: Transmission failed"
     end
 
-    data_1058 = { brake_pressure_low_byte, brake_pressure_high_byte, tps_value, 0, 0, 0, 0, 0}
     response = txCAN(channel, 1058, ext, data_1058, timeout)
     if response ~= 1 then
         println "ID 1058: Transmission failed"
     end
 
-	--Log above 10mph, stop logging below 10mph.
-
+    -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	-- Enable Logging - Log above 10mph, stop logging below 10mph.
+    -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 	if getGpsSpeed() > 10 then
 		startLogging()
 	else
