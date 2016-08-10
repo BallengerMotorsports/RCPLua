@@ -108,45 +108,45 @@ function onTick()
     end
 
     -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	-- Enable Logging - Log above 10mph, stop logging below 10mph.
+    -- Enable Logging - Log above 10mph, stop logging below 10mph.
     -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-	if getGpsSpeed() > 10 then
-		startLogging()
-	else
-		stopLogging()
-	end
+    if getGpsSpeed() > 10 then
+        startLogging()
+    else
+        stopLogging()
+    end
 end
 
 function calculateGear()  -- tick rate on this can be greatly reduced from function onTick, 10hz is adequate
-	local gear1 = 3.321
-	local gear2 = 1.902
-	local gear3 = 1.308
-	local gear4 = 1.000
-	local gear5 = 0.759
-	local finalDrive = 4.083
-	local tireDia = 25.03
-	local gearErr = 0.1
-	local rpmSpeedRatio = 0
-	local gearPos = 0
+    local gear1 = 3.321
+    local gear2 = 1.902
+    local gear3 = 1.308
+    local gear4 = 1.000
+    local gear5 = 0.759
+    local finalDrive = 4.083
+    local tireDia = 25.03
+    local gearErr = 0.1
+    local rpmSpeedRatio = 0
+    local gearPos = 0
 
-	local speed = getGpsSpeed()
-	local rpm = getTimerRpm(0)
+    local speed = getGpsSpeed()
+    local rpm = getTimerRpm(0)
 
-	gearId = addChannel("Gear",5,0,0,5)
+    gearId = addChannel("Gear",5,0,0,5)
 
-	if speed > 10 then
-		rpmSpeedRatio = (rpm/speed)/(finalDrive*1056/(tireDia*3.14159))
+    if speed > 10 then
+        rpmSpeedRatio = (rpm/speed)/(finalDrive*1056/(tireDia*3.14159))
 
-			if ((gear1 - rpmSpeedRatio)^2) < (gearErr^2) then gearPos = 1 end
-			if ((gear2 - rpmSpeedRatio)^2) < (gearErr^2) then gearPos = 2 end
-			if ((gear3 - rpmSpeedRatio)^2) < (gearErr^2) then gearPos = 3 end
-			if ((gear4 - rpmSpeedRatio)^2) < (gearErr^2) then gearPos = 4 end
-			if ((gear5 - rpmSpeedRatio)^2) < (gearErr^2) then gearPos = 5 end
+        if ((gear1 - rpmSpeedRatio)^2) < (gearErr^2) then gearPos = 1 end
+        if ((gear2 - rpmSpeedRatio)^2) < (gearErr^2) then gearPos = 2 end
+        if ((gear3 - rpmSpeedRatio)^2) < (gearErr^2) then gearPos = 3 end
+        if ((gear4 - rpmSpeedRatio)^2) < (gearErr^2) then gearPos = 4 end
+        if ((gear5 - rpmSpeedRatio)^2) < (gearErr^2) then gearPos = 5 end
 
-	else
-		gearPos = 0
-	end
+    else
+        gearPos = 0
+    end
 
-	setChannel(gearId, gearPos)
+    setChannel(gearId, gearPos)
 
 end
