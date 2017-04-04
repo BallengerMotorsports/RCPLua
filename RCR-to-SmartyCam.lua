@@ -43,13 +43,13 @@
 -- 7 = Clutch position high byte
 
 
-tick_rate        = 150      -- Update frequency in Hz.  Moved from 30Hz to 150Hz while testing message dropouts at SmartyCam
+tick_rate        = 200      -- Update frequency in Hz.  Moved from 30Hz to 150Hz while testing message dropouts at SmartyCam
 channel          = 0        -- CAN channel on the RCP. Either 0 or 1, depending on CAN bus chosen.
 ext              = 0        -- CAN ID is extended (0=11 bit, 1=29 bit)
-timeout          = 100      -- Milliseconds to attempt to send CAN message for
+timeout          = 10       -- Milliseconds to attempt to send CAN message for
 bitrate          = 1000000  -- CAN bitrate (SmartyCam = 1megabit)
-gear_tick_update = 10       -- Start at this number and tick down to 0. Upon hitting 0 calculateGear again
-gear_tick_count  = 10       -- Current tick approaching 0
+gear_tick_update = 3        -- Start at this number and tick down to 0. Upon hitting 0 calculateGear again
+gear_tick_count  = 3        -- Current tick approaching 0
 current_gear     = 0        -- The most recent gear that's been detected
 mph_to_kph       = 1.60934  -- Set this to 1 if speed already in kph, set to 1.60934 if in MPH 
 
