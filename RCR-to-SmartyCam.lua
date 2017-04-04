@@ -5,7 +5,7 @@
 -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 --
 -- RPM                      = (High Byte * 256 + Low byte)
--- ??
+-- Engine Temp
 -- Gear
 -- Engine Temp
 --
@@ -13,8 +13,8 @@
 --
 -- 0 = RPM low byte
 -- 1 = RPM high byte
--- 2 = ??
--- 3 = ??
+-- 2 = Speed low byte (10ths of KPH)
+-- 3 = Speed high byte (10ths of KPH)
 -- 4 = Gear low byte
 -- 5 = Gear high byte (probably unused)
 -- 6 = Engine temp low byte
@@ -51,6 +51,7 @@ bitrate          = 1000000  -- CAN bitrate (SmartyCam = 1megabit)
 gear_tick_update = 10       -- Start at this number and tick down to 0. Upon hitting 0 calculateGear again
 gear_tick_count  = 10       -- Current tick approaching 0
 current_gear     = 0        -- The most recent gear that's been detected
+mph_to_kph       = 1.60934  -- Set this to 1 if speed already in kph, set to 1.60934 if in MPH 
 
 -- Init
 initCAN(channel, bitrate)    -- Initialize CAN
@@ -72,6 +73,15 @@ function onTick()
     tps_value                = getAnalog(0)
     brake_pressure_value     = getAnalog(2)
     rpm_value                = getTimerRpm(0)
+    speed_value              = getGpsSpeed() 
+
+    -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    -- override inputs (for testing) comment these out with a --
+    -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    -- set engine to 750 RPM
+    -- rpm_value                = 750
+    -- set speed to doc brown's specifications
+    -- speed_value              = 88
 
     -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     -- perform conversions
@@ -79,24 +89,32 @@ function onTick()
     brake_pressure_value     = brake_pressure_value * 0.0689476         -- convert brake pressure to bar
     brake_pressure_value     = math.floor(brake_pressure_value * 100)   -- convert 1 = 1 bar to 1 = 0.01 bar
 
-
     brake_pressure_high_byte = math.floor(brake_pressure_value / 256)
     brake_pressure_low_byte  = brake_pressure_value % 256 -- - (brake_pressure_high_byte * 256)
 
     rpm_high_byte            = math.floor(rpm_value / 256)
     rpm_low_byte             = rpm_value % 256
 
+    speed_tenths_of_kph      = math.floor(speed_value * mph_to_kph * 10)
+
+    speed_high_byte          = math.floor(speed_tenths_of_kph / 256)
+    speed_low_byte           = speed_tenths_of_kph % 256
+
+    -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    -- override conversions (for testing) comment these out with a --
+    -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    -- speed_low_byte = 255
+    -- speed_high_byte = 0
+
     -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     -- Compile message data
     -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-    data_1056 = { rpm_low_byte, rpm_high_byte, 0,0,current_gear,0,0,0}
-    data_1058 = { brake_pressure_low_byte, brake_pressure_high_byte, tps_value, 0, 0, 0, 0, 0}
+    data_1056 = { rpm_low_byte,            rpm_high_byte,            speed_low_byte, speed_high_byte, current_gear, 0,0,0}
+    data_1058 = { brake_pressure_low_byte, brake_pressure_high_byte, tps_value, 0, 0,            0,0,0}
 
     -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     -- Transmit messages
     -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
     response = txCAN(channel, 1056, ext, data_1056, timeout)
     if response ~= 1 then
         println "ID 1056: Transmission failed"
@@ -146,7 +164,5 @@ function calculateGear()  -- tick rate on this can be greatly reduced from funct
     else
         gearPos = 0
     end
-
     setChannel(gearId, gearPos)
-
 end
