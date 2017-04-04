@@ -5,7 +5,7 @@
 -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 --
 -- RPM                      = (High Byte * 256 + Low byte)
--- Engine Temp
+-- Speed                    = KPH * 10, [01 00] = 0.1kph, [FF 00] = 25.5kph, [00 01] = 25.6kph
 -- Gear
 -- Engine Temp
 --
