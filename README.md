@@ -9,6 +9,26 @@ This script transmits data from the RaceCapture Pro to the AiM SmartyCam
 https://wiki.autosportlabs.com/AIM_SmartyCam_CAN
 
 ```lua
+
+--add your virtual channels here
+tpsId = addChannel("TPS", 10, 0, 0, 100, "%")
+tempId = addChannel("EngineTemp", 1, 0, 0, 120, 'C')
+oilTempId = addChannel("OilTemp", 1, 0, 0, 170, 'C')
+rpmId = addChannel("RPM", 10, 0, 0, 10000, 'RPM')
+oilPresId = addChannel("OilPress", 10, 2, 0, 10, 'Bar')
+fuellevelId = addChannel("FuelLevel", 1, 0, 0, 120, "L")
+temp1Id = addChannel ("HeadTemp" , 1, 0, 0, 170, 'C')
+
+temp2Id = addChannel ("EGT" , 10, 0, 0, 1000, 'C')
+ch1Id = addChannel ("BrakePos", 10, 0, 0, 100, "%") 
+ch2Id = addChannel ("ClutchPos", 10, 0, 0, 100, "%")
+ch3Id = addChannel ("Brake", 1, 0, 0, 150, "Bar")
+ch4Id = addChannel ("Steering", 1, 0, -300, 300, "Deg")
+ch5Id = addChannel ("Lambda", 10, 2, -1, 1, "C")
+fuelPresId = addChannel ("FuelPress", 10, 2, 0, 10, "Bar")
+
+gearId = addChannel ("Gear", 10, 0, 0, 7, "#")
+
 --format is: [CAN Id] = function(data) map_chan(<channel id>, data, <CAN offset>, <CAN length>, <multiplier>, <adder>)
 CAN_map = {
 [1056] = function(data) map_chan(rpmId, data, 0, 2, 1, 0) map_chan(gearId, data, 4, 2, 1, 0) map_chan_le(tempId, data, 6, 2, 0.1, 0) end,
