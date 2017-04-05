@@ -6,6 +6,8 @@ This script transmits data from the RaceCapture Pro to the AiM SmartyCam
 
 # Notes & References
 
+## AutoSportLabs SmartyCam page
+
 https://wiki.autosportlabs.com/AIM_SmartyCam_CAN
 
 ```lua
@@ -40,6 +42,8 @@ CAN_map = {
 }
 ```
 
+## AutoSportLabs CAN Bus Database
+
 https://wiki.autosportlabs.com/CAN_Bus_database
 
 Channel | Units | CAN Id | Offset (bytes) | Length (bytes) | Multiplier | Adder | Notes
@@ -51,3 +55,8 @@ OilPress | Bar | 1057 | 6 | 2 | 0.01 | 0 |
 TPS | % | 1058 | 2 | 1 | 1 | 0 | 
 Fuel | L | 1070 | 0 | 1 | 1 | 0
 
+## AiM SmartyCam message range?
+
+https://forum.autosportlabs.com/viewtopic.php?p=25261
+
+> Is this because it's looking for CAN ID 1056? Are the CAN addresses sequential from 1056 through 1074, set in order for the smartycam? 
