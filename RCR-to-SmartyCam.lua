@@ -1,5 +1,3 @@
--- Functioning CAN messaging from RCP to AiM SmartyCam.
--- TPS, Brake Pressure (PSI), RPM functional in this revision
 -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 -- Message 1056
 -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -109,8 +107,8 @@ function onTick()
     -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     -- Compile message data
     -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-    data_1056 = { rpm_low_byte,            rpm_high_byte,            speed_low_byte, speed_high_byte, current_gear, 0,0,0}
-    data_1058 = { brake_pressure_low_byte, brake_pressure_high_byte, tps_value, 0, 0,            0,0,0}
+    data_1056 = { rpm_low_byte, rpm_high_byte, speed_low_byte, speed_high_byte, current_gear, 0, 0, 0}
+    data_1058 = { brake_pressure_low_byte, brake_pressure_high_byte, tps_value, 0, 0, 0, 0, 0}
 
     -- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     -- Transmit messages
