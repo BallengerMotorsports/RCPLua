@@ -13,7 +13,7 @@ can_bus_bitrate = 500000    -- Define bus rate at 500kbps
 power_on_time = 0           -- How long we've been on
 power_on_message_id = 1792  -- define the message as 0x700 (1792 decimal)
 ext = 0                     -- flag if CAN ID is standard or extended (0=11 bit, 1=29 bit extended)
-debugging_verbosity = 3     -- 0 = off, 1 = fails, 2 = send sucess, 3 = packet data, 4 = fully verbose
+debugging_verbosity = 3     -- 0 = off, 1 = fails, 2 = send success/warnings, 3 = packet data/notices, 4 = fully verbose
 filter_address = 0x710      -- hex address for message with fuel data from MXG analog in 3
 filter_bit_mask = 0x7FF     -- 0x7FF = 111 1111 1111 (full 11 bit accessible)
 fuel_samples = {}           -- where we store fuel samples
@@ -21,6 +21,15 @@ fuel_sample_count = 30      -- number of sample to store
 fuel_sample_pointer = 0     -- current index of where to store a sample
 fuel_msg_offset = 7         -- according to the documentation RCP claims to index the data array off 1 as the first entry instead of 0 like every other array ever made.
 
+----------------------------------------------------------------------------------
+-- helper function: debug message
+----------------------------------------------------------------------------------
+function debug_message(debug_message_level, debug_msg)
+    -- 1 crtitical message
+    -- 2 warnings
+    -- 3 notices
+    if(debugging_verbosity >= debug_message_level) then println(debug_msg) end
+end
 
 ----------------------------------------------------------------------------------
 -- Setup Code
@@ -40,7 +49,8 @@ initCAN(can_bus_selection, can_bus_bitrate)
 setCANfilter(can_bus_selection, 0, ext, 0x710, 0x7FF)
 
 -- default samples to full
-for fuel_sample_pointer = 0, (fuel_sample_count - 1)
+for fuel_sample_pointer = 0, (fuel_sample_count - 1) do
+    debug_message(3, "Populating array with default value at index " .. fuel_sample_pointer )
     fuel_samples[fuel_sample_pointer] = 100
 end
 fuel_sample_pointer = 0 -- reset pointer to 0 when done storing values
@@ -69,19 +79,19 @@ function onTick()
         -- according to the documentation RCP claims to index the data array off 1 
         -- as the first entry instead of 0 like every other array ever made.
         fuel_samples[fuel_sample_pointer] = (data[fuel_msg_offset] + (data[fuel_msg_offset + 1] * 256)) / 100
-
+        debug_message(3, "Updating fuel samples at offset " .. fuel_sample_pointer .. " with value " .. fuel_samples[fuel_sample_pointer])
         fuel_sample_pointer = fuel_sample_pointer + 1
     end
 
     -- calculate surge fuel average
     surge_fuel_total = 0
-    for i = 0, (fuel_sample_count - 1)
+    for i = 0, (fuel_sample_count - 1) do
         surge_fuel_total = surge_fuel_total + fuel_samples[i]
     end
     surge_fuel_average = surge_fuel_total / fuel_sample_count
     -- set bounds as 0 and 100
-    if(surge_fuel_average > 100) surge_fuel_average = 100
-    if(surge_fuel_average < 0) surge_fuel_average = 0
+    if(surge_fuel_average > 100) then surge_fuel_average = 100 end
+    if(surge_fuel_average < 0) then surge_fuel_average = 0 end
     setChannel("SrgFuelFilt", math.floor(surge_fuel_average))
 
 
@@ -90,13 +100,6 @@ function onTick()
 
     -- send the CAN message
     send_CAN_message(can_bus_selection, power_on_message_id, ext, data_1792,  timeout)
-end
-
-----------------------------------------------------------------------------------
--- debug message
-----------------------------------------------------------------------------------
-function debug_message(debug_message_level, debug_msg)
-    if(debugging_verbosity >= debug_message_level) then println(debug_msg) end
 end
 
 ----------------------------------------------------------------------------------
