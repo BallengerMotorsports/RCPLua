@@ -6,12 +6,12 @@
 --
 -- GSUM based fuel filtering
 -- -------
--- Read accel data from the IMU. (Written: Yes, Checked: No)
--- Calculate a GSUM from the data. https://goo.gl/GDLsjN GSUM = squrt(x^2+y2+z^2) (Written: Yes, Checked: No)
--- If gsum is under a specified setpoint increment a counter (Written: Yes, Checked: No)
--- If gsum exceeds the setpoint reset the counter to zero (Written: Yes, Checked: No)
--- Once counter has exceeded a stability floor (3?) begin sample the surge level (Written: Yes, Checked: No)
--- Publish this stabalized reading in our CAN message along with the existing levels    (Written: No, Checked: No) 
+-- Read accel data from the IMU. (Written: Yes, Checked: Yes)
+-- Calculate a GSUM from the data. https://goo.gl/GDLsjN GSUM = squrt(x^2+y2+z^2) (Written: Yes, Checked: Yes)
+-- If gsum is under a specified setpoint increment a counter (Written: Yes, Checked: Yes)
+-- If gsum exceeds the setpoint reset the counter to zero (Written: Yes, Checked: Yes)
+-- Once counter has exceeded a stability floor (3?) begin sample the surge level (Written: Yes, Checked: Yes)
+-- Publish this stabalized reading in our CAN message along with the existing levels    (Written: Yes, Checked: Yes) 
 
 ----------------------------------------------------------------------------------
 -- Setup variables
