@@ -68,8 +68,9 @@ end
 setTickRate(tick_rate)                          
 
 -- addChannel( name, sampleRate, [precision], [min], [max], [units] )
-addChannel("DriverTime", 1, 0, 0, 250, "min")   -- create a custom channel for time since powered on in minutes
-addChannel("SrgFuelFilt", 1, 0, 0, 100, "%")   -- create a custom channel for filtered surge fuel level
+chan_dt = addChannel("DriverTime",    1, 0, 0, 250, "min")   -- create a custom channel for time since powered on in minutes
+chan_fa = addChannel("SrgFuelFilt",   1, 0, 0, 100, "%")   -- create a custom channel for filtered surge fuel level
+chan_fg = addChannel("SrgFulFltGS",   1, 0, 0, 100, "%")   -- create a custom channel for gsum filtered surge fuel level
 
 -- Initialize CAN
 initCAN(can_bus_selection, can_bus_bitrate)     
@@ -102,7 +103,7 @@ function onTick()
     power_on_time = power_on_time + 1
 
     -- update the channel we have created
-    setChannel("DriverTime", math.floor(power_on_time / 60))
+    setChannel(chan_dt, math.floor(power_on_time / 60))
 
     -- calculate the high and low bytes of the power on time
     power_on_high_byte = math.floor(power_on_time / 256)
@@ -110,7 +111,7 @@ function onTick()
 
 
     -- look for a CAN message with the CAN ID we need
-    id, ext, data = rxCAN(can_bus_selection, 100) --100ms timeout
+    id, ext_rx, data = rxCAN(can_bus_selection, 100) --100ms timeout
     if id == filter_address then
         if fuel_sample_pointer >= fuel_total_sample_count then
             fuel_sample_pointer = 0
@@ -121,17 +122,27 @@ function onTick()
         fuel_samples[fuel_sample_pointer] = new_fuel_value
         debug_message(3, "Updating fuel samples at offset " .. fuel_sample_pointer .. " with value " .. fuel_samples[fuel_sample_pointer])
 
+        -- sample IMU for gsum calculation data
         imu_x = math.abs(getImu(0))  -- read the x accel value
         imu_y = math.abs(getImu(1))  -- read the y accel value
-        imu_z = math.abs(getImu(2))
+        imu_z = 0 -- math.abs(getImu(2)) -- can optionally include the Z axis in the gsum calculation (set to 0 to remove)
+
+        debug_message(4, "GSUM.x=" .. imu_x)
+        debug_message(4, "GSUM.y=" .. imu_y)
+        debug_message(4, "GSUM.z=" .. imu_z)
+
+        -- calculate gsum
         imu_gsum = math.sqrt(imu_x * imu_x + imu_y * imu_y + imu_z * imu_z)
+        debug_message(4, "GSUM calcuated as " .. imu_gsum)
 
         if(imu_gsum < fuel_gsum_stability_ceiling) then
+            debug_message(4, "GSUM Stable chain length: " .. fuel_gsum_stable_count)
             -- if we are stable increment the stable counter
             fuel_gsum_stable_count = fuel_gsum_stable_count + 1
             -- if we are stable passed the threshold value store a filtered value
             if(fuel_gsum_stable_count > fuel_gsum_sequential_stability_floor) then
                 -- store our latest reading
+                debug_message(4, "GSUM Stable count reached, updating point " .. fuel_gsum_sample_pointer .. " with " .. new_fuel_value)
                 fuel_gsum_samples[fuel_gsum_sample_pointer] = new_fuel_value
 
                 -- increment our gsum storage pointer or reset it to 0 if necessary
@@ -142,6 +153,7 @@ function onTick()
             end
         else
             -- if we are NOT stable reset the stable counter
+            debug_message(4, "GSUM unstable, resetting to 0")
             fuel_gsum_stable_count = 0
         end
 
@@ -157,12 +169,21 @@ function onTick()
     -- set bounds as 0 and 100
     if(surge_fuel_average > 100) then surge_fuel_average = 100 end
     if(surge_fuel_average < 0) then surge_fuel_average = 0 end
-    setChannel("SrgFuelFilt", math.floor(surge_fuel_average))
+    setChannel(chan_fa, math.floor(surge_fuel_average))
 
-    -- TODO setup the gsum filtered data to be sent out.
+    -- calculate gsum surge fuel average
+    gsum_surge_fuel_total = 0
+    for i = 0, (fuel_gsum_total_sample_count - 1) do
+        gsum_surge_fuel_total = gsum_surge_fuel_total + fuel_gsum_samples[i]
+    end
+    gsum_surge_fuel_average = gsum_surge_fuel_total / fuel_gsum_total_sample_count
+    -- set bounds as 0 and 100
+    if(gsum_surge_fuel_average > 100) then gsum_surge_fuel_average = 100 end
+    if(gsum_surge_fuel_average < 0) then gsum_surge_fuel_average = 0 end
+    setChannel(chan_fg, math.floor(gsum_surge_fuel_average))
 
     -- build a message
-    data_1792 = {power_on_low_byte, power_on_high_byte, surge_fuel_average, 0, 0, 0, 0, 0}
+    data_1792 = {power_on_low_byte, power_on_high_byte, surge_fuel_average, gsum_surge_fuel_average, 0, 0, 0, 0}
 
     -- send the CAN message
     send_CAN_message(can_bus_selection, power_on_message_id, ext, data_1792,  timeout)
