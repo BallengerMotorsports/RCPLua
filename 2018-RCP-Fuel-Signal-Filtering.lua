@@ -58,9 +58,19 @@ chan_ch = addChannel("GSUMChnLen",    1, 0, 0, 100, "#")
 -- Initialize CAN
 initCAN(can_bus_selection, can_bus_bitrate)     
 
+
+-- !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+--                             WARNING 
+--
+-- DO NOT USE THIS UNLESS YOU KNOW WHAT YOU ARE DOING. IT APPLIES A FILTER AT THE
+-- HARDWARE LEVEL REJECTING ALL MESSAGES OUTSIDE OF THE FILTER FROM REACHING CAN
+-- MAPPING 
+--
 -- Only look for the message containing surge fuel while scripting
--- setCANfilter(channel, filterId, extended, filter, mask )
-setCANfilter(can_bus_selection, 0, ext, 0x710, 0x7FF)
+-- HOW TO: setCANfilter(channel, filterId, extended, filter, mask )
+--
+-- setCANfilter(can_bus_selection, 0, ext, 0x710, 0x7FF)
+-- !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 -- default samples to full
 for fuel_sample_pointer = 0, (fuel_total_sample_count - 1) do
@@ -94,55 +104,58 @@ function onTick()
 
 
     -- look for a CAN message with the CAN ID we need
-    id, ext_rx, data = rxCAN(can_bus_selection, 100) --100ms timeout
-    if id == filter_address then
-        if fuel_sample_pointer >= fuel_total_sample_count then
-            fuel_sample_pointer = 0
-        end
-        -- according to the documentation RCP claims to index the data array off 1 
-        -- as the first entry instead of 0 like every other array ever made.
-        new_fuel_value = (data[main_fuel_msg_offset] + (data[main_fuel_msg_offset + 1] * 256)) / 100
-        main_fuel_samples[fuel_sample_pointer] = new_fuel_value
-
-        new_fuel_value = (data[surge_fuel_msg_offset] + (data[surge_fuel_msg_offset + 1] * 256)) / 100
-        surge_fuel_samples[fuel_sample_pointer] = new_fuel_value
-
-        -- sample IMU for gsum calculation data
-        imu_x = math.abs(getImu(0))  -- read the x accel value
-        imu_y = math.abs(getImu(1))  -- read the y accel value
-        imu_z = 0 -- math.abs(getImu(2)) -- can optionally include the Z axis in the gsum calculation (set to 0 to remove)
-
-        -- calculate gsum
-        imu_gsum = math.sqrt(imu_x * imu_x + imu_y * imu_y + imu_z * imu_z)
-
-        if(imu_gsum < fuel_gsum_stability_ceiling) then
-            -- if we are stable increment the stable counter
-            fuel_gsum_stable_count = fuel_gsum_stable_count + 1
-            if(fuel_gsum_stable_count > 255) then
-                fuel_gsum_stable_count = 255
+    repeat
+        id, ext_rx, data = rxCAN(can_bus_selection, 25) --25ms timeout
+        if id == filter_address then
+            if fuel_sample_pointer >= fuel_total_sample_count then
+                fuel_sample_pointer = 0
             end
+            -- according to the documentation RCP claims to index the data array off 1 
+            -- as the first entry instead of 0 like every other array ever made.
+            new_fuel_value = (data[main_fuel_msg_offset] + (data[main_fuel_msg_offset + 1] * 256)) / 100
+            main_fuel_samples[fuel_sample_pointer] = new_fuel_value
 
-            setChannel(chan_ch, fuel_gsum_stable_count)
-            -- chan_ch
-            -- if we are stable passed the threshold value store a filtered value
-            if(fuel_gsum_stable_count > fuel_gsum_sequential_stability_floor) then
-                -- store our latest reading
-                main_fuel_gsum_samples[fuel_gsum_sample_pointer] = main_fuel_samples[fuel_sample_pointer]
-                surge_fuel_gsum_samples[fuel_gsum_sample_pointer] = surge_fuel_samples[fuel_sample_pointer]
+            new_fuel_value = (data[surge_fuel_msg_offset] + (data[surge_fuel_msg_offset + 1] * 256)) / 100
+            surge_fuel_samples[fuel_sample_pointer] = new_fuel_value
 
-                -- increment our gsum storage pointer or reset it to 0 if necessary
-                fuel_gsum_sample_pointer = fuel_gsum_sample_pointer + 1
-                if(fuel_gsum_sample_pointer >= fuel_gsum_total_sample_count) then
-                    fuel_gsum_sample_pointer = 0
+            -- sample IMU for gsum calculation data
+            imu_x = math.abs(getImu(0))  -- read the x accel value
+            imu_y = math.abs(getImu(1))  -- read the y accel value
+            imu_z = 0 -- math.abs(getImu(2)) -- can optionally include the Z axis in the gsum calculation (set to 0 to remove)
+
+            -- calculate gsum
+            imu_gsum = math.sqrt(imu_x * imu_x + imu_y * imu_y + imu_z * imu_z)
+
+            if(imu_gsum < fuel_gsum_stability_ceiling) then
+                -- if we are stable increment the stable counter
+                fuel_gsum_stable_count = fuel_gsum_stable_count + 1
+                if(fuel_gsum_stable_count > 255) then
+                    fuel_gsum_stable_count = 255
                 end
-            end
-        else
-            -- if we are NOT stable reset the stable counter
-            fuel_gsum_stable_count = 0
-        end
 
-        fuel_sample_pointer = fuel_sample_pointer + 1
-    end
+                setChannel(chan_ch, fuel_gsum_stable_count)
+                -- chan_ch
+                -- if we are stable passed the threshold value store a filtered value
+                if(fuel_gsum_stable_count > fuel_gsum_sequential_stability_floor) then
+                    -- store our latest reading
+                    main_fuel_gsum_samples[fuel_gsum_sample_pointer] = main_fuel_samples[fuel_sample_pointer]
+                    surge_fuel_gsum_samples[fuel_gsum_sample_pointer] = surge_fuel_samples[fuel_sample_pointer]
+
+                    -- increment our gsum storage pointer or reset it to 0 if necessary
+                    fuel_gsum_sample_pointer = fuel_gsum_sample_pointer + 1
+                    if(fuel_gsum_sample_pointer >= fuel_gsum_total_sample_count) then
+                        fuel_gsum_sample_pointer = 0
+                    end
+                end
+            else
+                -- if we are NOT stable reset the stable counter
+                fuel_gsum_stable_count = 0
+            end
+
+            fuel_sample_pointer = fuel_sample_pointer + 1
+        end
+    until id == nil
+
 
     -- calculate surge fuel average. reset totals
     main_fuel_total = 0
