@@ -1,3 +1,7 @@
+> **Archived.** This repository is read-only and no longer maintained, and is kept for historical reference.
+
+---
+
 # RCPLua
 Lua scripts for the RaceCapturePro
 
